@@ -5,7 +5,7 @@ def processBYTE(arg):
     return arg
 
 def processWORD(word):
-    # TODO : Group 3 要轉成 16 進位且要 6 byte
+    # TODO : arg 要轉成 16 進位且要 6 byte
     address = str(word)
     jump = 3
     return address, jump
@@ -13,8 +13,14 @@ def processWORD(word):
 def processFormat(command, arg):
     # TODO : 改寫成 SIC/XE 時，要判斷指令格式來決定 pcCounter 的加減
     # TODO : 處理逗點問題
+    if ',' in arg:
+        spiltString = arg.split(',')
+        arg = spiltString[0]
+        register = spiltString[1]
+        return 3, arg, register
     return 3, arg, None
 
+# 將尚未產生 ObjCode 的部份轉為 ObjCode
 def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
     for missDict in missObj:
         opCode = opCodeDict[missDict['opCode']]
@@ -27,6 +33,7 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
         sortedObjCode[i] = objectCode[i]
     return sortedObjCode
 
+# 將目前無法產生 ObjCode 的行列加入列表中
 def addMissObj(pcCounter, command, arg, missObj):
     tempdict = dict()
     tempdict['nowPC'] = pcCounter

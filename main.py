@@ -75,7 +75,7 @@ with open(file=fileName, mode="r") as file:
             if label is not None:
                 labelAddress[label] = pcCounter
             
-            print(pcCounter)
+            # print(pcCounter) # Debug 
             # 如果 command 讀到 WORD ，將 arg 的數字變成地址
             if command == "WORD":
                 address, jump = Process.processWORD(arg)
@@ -88,12 +88,12 @@ with open(file=fileName, mode="r") as file:
             # 讀到 RESW ，就把後面的數字 * 3 往下加
             elif command == "RESW":
                 jump = int(arg, 16) * 3
-                print("RESW : {}".format(jump)) # Debug
+                # print("RESW : {}".format(jump)) # Debug
             
             # 讀到 RESB ，直接把裡面的數字拿來加
             elif command == "RESB":
                 jump = int(arg)
-                print("RESB: {}".format(jump)) # Debug
+                # print("RESB: {}".format(jump)) # Debug
             
             else:
                 # TODO : 改寫成 SIC/XE 時，判斷指令前先判斷前面有沒有符號
@@ -103,13 +103,27 @@ with open(file=fileName, mode="r") as file:
                     
                     # 根據指令格式處理參數
                     jump, arg, register = Process.processFormat(command, arg)
+
+                    # print(arg) # Debug
                     
+                    
+                    # 如果是 RSUB，因為 RSUB 後面沒 arg ，那就直接組指令即可
+                    if command == "RSUB" and arg == "":
+                        opCode = str(opCodeDict[command])
+                        address = "0000"
+                        address = opCode + address
+                        objectCode[pcCounter] = address
                     # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
-                    if arg in labelAddress.keys():
+                    elif arg in labelAddress.keys() and command != "RSUB":
                         # 如果標籤存在於標籤表，但是裡面的值為空，則一樣加入 missObj
                         if labelAddress[arg] != "":
                             opCode = str(opCodeDict[command])
                             address = str(labelAddress[arg])
+                            # 如果 register 不等於 None (代表有兩個參數)，且 jump != 2 (format 2)，則進行位置運算
+                            if jump != 2 and register != None:
+                                print("Pass!") # Debug
+                                address = Calculate.calXRegister(address)
+                                print(address) # Debug
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
@@ -126,6 +140,7 @@ with open(file=fileName, mode="r") as file:
 # 處理沒有馬上產生 Obj Code 的列
 objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
 
+# Debug
 print("Label and Address : ")
 print(labelAddress)
 print("obj Code :")
