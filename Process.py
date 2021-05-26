@@ -1,9 +1,8 @@
 def processBYTE(arg):
-    # TODO : 如果讀到 BYTE ，讀讀看 Group 3 是 X、C
+    # 如果讀到 BYTE ，讀讀看 Group 3 是 X、C
     # X : 直接把 16 進位拿出來當地址
     # C : 裡面的東西要先轉成 16 進位
     splitString = arg.split("'")
-    print(splitString)
     if splitString[0] == "c" or splitString[0] == "C":
         tempChars = list()
         for a in splitString[1]:
@@ -24,7 +23,6 @@ def processWORD(word):
 
 def processFormat(command, arg):
     # TODO : 改寫成 SIC/XE 時，要判斷指令格式來決定 pcCounter 的加減
-    # TODO : 處理逗點問題
     if ',' in arg:
         spiltString = arg.split(',')
         arg = spiltString[0]

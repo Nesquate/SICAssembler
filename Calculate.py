@@ -6,5 +6,10 @@ def addPcCounter(pcCounter, jump):
     return pcCounter
 
 def calXRegister(address):
-    # TODO : 計算當 X Register 被識別出來時，計算地址
+    # 計算當 X Register 被識別出來時，計算地址
+    splitString = list(address)
+    head = int(splitString[0], 16)
+    head = head + 8 # X = 1，所以要加 8
+    splitString[0] = format(head, "X")
+    address = ''.join(splitString)
     return address

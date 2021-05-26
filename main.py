@@ -140,8 +140,8 @@ with open(file=fileName, mode="r") as file:
 objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
 
 # Debug
-print("Label and Address : ")
-print(labelAddress)
+# print("Label and Address : ")
+# print(labelAddress)
 print("obj Code :")
 print(objectCode)
 # print("No Obj Code list :")
