@@ -126,11 +126,19 @@ with open(file=fileName, mode="r") as file:
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
-                            Process.addMissObj(pcCounter, command, arg, missObj)
+                            if jump != 2 and register != None:
+                                index = True
+                            else:
+                                index = False
+                            Process.addMissObj(pcCounter, command, arg, missObj, index)
                     # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
                     else:
                         labelAddress[arg] = ""
-                        Process.addMissObj(pcCounter, command, arg, missObj)
+                        if jump != 2 and register != None:
+                                index = True
+                        else:
+                            index = False
+                        Process.addMissObj(pcCounter, command, arg, missObj, index)
             
             # 處理 pcCounter 16 進位問題
             pcCounter = Calculate.addPcCounter(pcCounter, jump)
@@ -142,8 +150,8 @@ objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, lab
 # Debug
 # print("Label and Address : ")
 # print(labelAddress)
+print("No Obj Code list :")
+print(missObj)
 print("obj Code :")
 print(objectCode)
-# print("No Obj Code list :")
-# print(missObj)
 
