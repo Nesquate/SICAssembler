@@ -12,14 +12,14 @@ def processBYTE(arg):
             a = format(a, "X")
             tempChars.append(a)
         toString = ''.join(tempChars)
-        return toString
+        return toString, int(len(toString)/2)
     if splitString[0] == "x" or splitString[0] == "X":
-        return splitString[1]
-    return arg
+        return splitString[1], int(len(splitString[1])/2)
+    return arg, 3
 
 def processWORD(word):
     # arg 要轉成 16 進位且要 6 byte
-    address = int(word, 16)
+    address = int(word)
     address = format(address, "06X")
     jump = 3
     return address, jump

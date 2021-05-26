@@ -2,7 +2,7 @@
 def addPcCounter(pcCounter, jump):
     pcCounter = int(pcCounter, 16)
     pcCounter = pcCounter + jump
-    pcCounter = format(pcCounter, "X")
+    pcCounter = format(pcCounter, "04X") # PC 補 4 位
     return pcCounter
 
 def calXRegister(address):

@@ -5,14 +5,17 @@
 3. 多寫註解
 """
 # 要讀取的檔案名稱
-fileName = "a2.asm"
+fileName = "a3.asm"
+
+# List File 檔案名稱
+outFileName = "out.lst"
 
 # SIC OpCode 參考檔案名稱
 sicFileName = "sicOpCode.json"
 
 # 引入必要 Library
 import re
-import Process, Read, Calculate
+import Process, Read, Calculate, Write
 
 """
 建立必要的 "容器"
@@ -24,30 +27,37 @@ labelAddress = dict()
 objectCode = dict()
 missObj = list()
 
+# 讀取 opCode 字典檔 (JSON 格式)
 opCodeDict = Read.readOpCodeFile(sicFileName)
+
+"""
+定義 Regex 語法
+- 分三個區域
+- 標籤部份 : `(?:(^[A-Za-z][A-Za-z0-9]*) +| +)`
+    - 第一個字必須英文字母，後面隨意
+    - 必須要在開頭
+    - 但因為有可能沒有標籤，所以上面的規則用口語化表示：
+        - 如果前面是空格，匹配掉但是不當群組
+        - 如果前面有英文字母，繼續匹配直到後面接到不是空格為止
+- 指令部份 : `(?: +([A-Za-z]+) +)`
+    - 前面一定要有空格
+    - 中間一定是英文字母，SIC/XE指令沒有數字或底線
+    - 空格匹配，但是不當群組
+- 指令參數部份 : `(?: +([A-Za-z0-9',]*) +)`
+    - 同指令部份，但是多匹配了引號和逗號
+- 註解部份
+    - 會匹配掉，但是都不當群組
+    - 註解後面接什麼字都行
+
+2021/05/26 : 因為發現在撰寫 List file 時需要匹配註解行，因此寫了新規則
+`(^\..*)|(^ +\..*)` : 開頭有至少一個空格再英文句號 或 開頭就是英文句號的
+就是註解行
+"""
+regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +([A-Za-z]+) +)(?: +([A-Za-z0-9',]*)))")
+regex_space = re.compile(r"(^\..*)|(^ +\..*)")
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
-    """
-    定義 Regex 語法
-    - 分三個區域
-    - 標籤部份 : `(?:(^[A-Za-z][A-Za-z0-9]*) +| +)`
-        - 第一個字必須英文字母，後面隨意
-        - 必須要在開頭
-        - 但因為有可能沒有標籤，所以上面的規則用口語化表示：
-            - 如果前面是空格，匹配掉但是不當群組
-            - 如果前面有英文字母，繼續匹配直到後面接到不是空格為止
-    - 指令部份 : `(?: +([A-Za-z]+) +)`
-        - 前面一定要有空格
-        - 中間一定是英文字母，SIC/XE指令沒有數字或底線
-        - 空格匹配，但是不當群組
-    - 指令參數部份 : `(?: +([A-Za-z0-9',]*) +)`
-        - 同指令部份，但是多匹配了引號和逗號
-    - 註解部份
-        - 會匹配掉，但是都不當群組
-        - 註解後面接什麼字都行
-    """
-    regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +([A-Za-z]+) +)(?: +([A-Za-z0-9',]*) +))")
     # 將檔案裡每一行都變成 List 的一部分
     text = file.readlines()
     # 逐行進行判斷
@@ -69,7 +79,7 @@ with open(file=fileName, mode="r") as file:
         if command == "START":
             # TODO : 處理 aarg 沒有 match 到的例外
             programName = label
-            pcCounter = arg
+            pcCounter = format(int(arg, 16), "04X") # 處理補 4 個位數
         else:
             # 如果有標籤，紀錄當下 PC Counter 以及維護標籤表
             if label is not None:
@@ -83,18 +93,20 @@ with open(file=fileName, mode="r") as file:
             
             # 如果讀到 BYTE ，讀讀看 arg 是 X、C
             elif command == "BYTE":
-                address = Process.processBYTE(arg)
+                address, jump = Process.processBYTE(arg)
                 objectCode[pcCounter] = address
             
             # 讀到 RESW ，就把後面的數字 * 3 往下加
             elif command == "RESW":
-                jump = int(arg, 16) * 3
+                jump = int(arg) * 3
                 # print("RESW : {}".format(jump)) # Debug
+                objectCode[pcCounter] = "" # 寫一個空值表示不用產生 ObjCode
             
             # 讀到 RESB ，直接把裡面的數字拿來加
             elif command == "RESB":
                 jump = int(arg)
                 # print("RESB: {}".format(jump)) # Debug
+                objectCode[pcCounter] = "" # 寫一個空值表示不用產生 ObjCode
             
             else:
                 # TODO : 改寫成 SIC/XE 時，判斷指令前先判斷前面有沒有符號
@@ -142,8 +154,8 @@ with open(file=fileName, mode="r") as file:
                         Process.addMissObj(pcCounter, command, arg, missObj, index)
             
             # 處理 pcCounter 16 進位問題
-            pcCounter = Calculate.addPcCounter(pcCounter, jump)
-            jump = 3 # Reset
+            if command != None:
+                pcCounter = Calculate.addPcCounter(pcCounter, jump)
 
 # 處理沒有馬上產生 Obj Code 的列
 objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
@@ -155,4 +167,7 @@ print("No Obj Code list :")
 print(missObj)
 print("obj Code :")
 print(objectCode)
+# print(list(objectCode.keys()))
 
+# 產出 List File
+Write.genListFile(outFileName, objectCode, text, regex, regex_space)

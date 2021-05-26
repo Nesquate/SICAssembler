@@ -1,6 +1,8 @@
 .vscode/
 asm/
-a2.asm
+*.asm
+*.lst
+*.obj
 aboutObjCode.txt
 pseudo.txt
 __pycache__/
