@@ -2,6 +2,18 @@ def processBYTE(arg):
     # TODO : 如果讀到 BYTE ，讀讀看 Group 3 是 X、C
     # X : 直接把 16 進位拿出來當地址
     # C : 裡面的東西要先轉成 16 進位
+    splitString = arg.split("'")
+    print(splitString)
+    if splitString[0] == "c" or splitString[0] == "C":
+        tempChars = list()
+        for a in splitString[1]:
+            a = ord(a)
+            a = format(a, "X")
+            tempChars.append(a)
+        toString = ''.join(tempChars)
+        return toString
+    if splitString[0] == "x" or splitString[0] == "X":
+        return splitString[1]
     return arg
 
 def processWORD(word):

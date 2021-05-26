@@ -106,7 +106,6 @@ with open(file=fileName, mode="r") as file:
 
                     # print(arg) # Debug
                     
-                    
                     # 如果是 RSUB，因為 RSUB 後面沒 arg ，那就直接組指令即可
                     if command == "RSUB" and arg == "":
                         opCode = str(opCodeDict[command])
@@ -121,9 +120,9 @@ with open(file=fileName, mode="r") as file:
                             address = str(labelAddress[arg])
                             # 如果 register 不等於 None (代表有兩個參數)，且 jump != 2 (format 2)，則進行位置運算
                             if jump != 2 and register != None:
-                                print("Pass!") # Debug
+                                # print("Pass!") # Debug
                                 address = Calculate.calXRegister(address)
-                                print(address) # Debug
+                                # print(address) # Debug
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
