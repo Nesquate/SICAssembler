@@ -11,7 +11,8 @@ fileName = "a2.asm"
 sicFileName = "sicOpCode.json"
 
 # 引入必要 Library
-import re, json
+import re
+import Process, Read, Calculate
 
 """
 建立必要的 "容器"
@@ -23,10 +24,7 @@ labelAddress = dict()
 objectCode = dict()
 missObj = list()
 
-# 讀 SIC Op Code 檔案
-with open(file=sicFileName, mode="r") as jsonFile:
-    jsonContent = jsonFile.read()
-    sicOpCodeDict = json.loads(jsonContent)
+opCodeDict = Read.readOpCodeFile(sicFileName)
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -54,90 +52,84 @@ with open(file=fileName, mode="r") as file:
     text = file.readlines()
     # 逐行進行判斷
     for line in text:
+        # 匹配分成三個群組
         match = regex.search(line)
-        # 如果 Group 是 START ，Group 1 為程式名稱，Group 2 為記憶體起始位置 (PC 起始位 )
-        if match.group(2) == "START":
-            # TODO : 處理 Group 3 沒有 match 到的例外
-            programName = match.group(1)
-            pcCounter = match.group(3)
+
+        """
+        命名:
+        label = Group 1 ，標籤
+        command = Group 2 ，組合語言指令部份
+        arg = Group 3 ，指令後方參數
+        """
+        label = match.group(1)
+        command = match.group(2)
+        arg = match.group(3)
+
+        # 如果 command 是 START ，label 為程式名稱，ar  為記憶體起始位置 (PC 起始位 )
+        if command == "START":
+            # TODO : 處理 aarg 沒有 match 到的例外
+            programName = label
+            pcCounter = arg
         else:
             # 如果有標籤，紀錄當下 PC Counter 以及維護標籤表
-            if match.group(1) is not None:
-                labelAddress[match.group(1)] = pcCounter
+            if label is not None:
+                labelAddress[label] = pcCounter
             
             print(pcCounter)
-            # 如果 Group 2 讀到 WORD ，將 Group 3 的數字變成地址
-            # TODO : Group 3 要轉成 16 進位且要 6 byte
-            if match.group(2) == "WORD":
-                address = str(match.group(3))
-                jump = 3
-            # TODO : 如果讀到 BYTE ，讀讀看 Group 3 是 X、C
-            # X : 直接把 16 進位拿出來當地址
-            # C : 裡面的東西要先轉成 16 進位
-            elif match.group(2) == "BYTE":
-                address = match.group(3)
+            # 如果 command 讀到 WORD ，將 arg 的數字變成地址
+            if command == "WORD":
+                address, jump = Process.processWORD(arg)
+            
+            # 如果讀到 BYTE ，讀讀看 arg 是 X、C
+            elif command == "BYTE":
+                address = Process.processBYTE(arg)
                 objectCode[pcCounter] = address
+            
             # 讀到 RESW ，就把後面的數字 * 3 往下加
-            elif match.group(2) == "RESW":
-                jump = int(match.group(3), 16) * 3
+            elif command == "RESW":
+                jump = int(arg, 16) * 3
                 print("RESW : {}".format(jump)) # Debug
+            
             # 讀到 RESB ，直接把裡面的數字拿來加
-            elif match.group(2) == "RESB":
-                jump = int(match.group(3))
+            elif command == "RESB":
+                jump = int(arg)
                 print("RESB: {}".format(jump)) # Debug
+            
             else:
-                # TODO : 改寫成 SIC/XE 時，要判斷指令格式來決定 pcCounter 的加減
                 # TODO : 改寫成 SIC/XE 時，判斷指令前先判斷前面有沒有符號
-                # 如果 Group 2 讀出來的指令存在於 sicOpCodeDict
-                if match.group(2) in sicOpCodeDict.keys():
+                # 如果 command 讀出來的指令存在於 sicOpCodeDict
+                if command in opCodeDict.keys():
                     # print("NowOpCode : {}".format(opCode)) # Debug
-                    jump = 3
-                    # 如果 Group 3 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
-                    if match.group(3) in labelAddress.keys():
-                        # TODO : 處理逗點問題
+                    
+                    # 根據指令格式處理參數
+                    jump, arg, register = Process.processFormat(command, arg)
+                    
+                    # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
+                    if arg in labelAddress.keys():
                         # 如果標籤存在於標籤表，但是裡面的值為空，則一樣加入 missObj
-                        if labelAddress[match.group(3)] != "":
-                            opCode = str(sicOpCodeDict[match.group(2)])
-                            address = str(labelAddress[match.group(3)])
+                        if labelAddress[arg] != "":
+                            opCode = str(opCodeDict[command])
+                            address = str(labelAddress[arg])
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
-                            tempdict = dict()
-                            tempdict['nowPC'] = pcCounter
-                            tempdict['opCode'] = match.group(2)
-                            tempdict['label'] = match.group(3)
-                            missObj.append(tempdict)
-                    # 否則加入labelAddress對應 (先使用空白值當值)，且加入 missObj
+                            Process.addMissObj(pcCounter, command, arg, missObj)
+                    # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
                     else:
-                        labelAddress[match.group(3)] = ""
-                        tempdict = dict()
-                        tempdict['nowPC'] = pcCounter
-                        tempdict['opCode'] = match.group(2)
-                        tempdict['label'] = match.group(3)
-                        missObj.append(tempdict)
+                        labelAddress[arg] = ""
+                        Process.addMissObj(pcCounter, command, arg, missObj)
             
             # 處理 pcCounter 16 進位問題
-            pcCounter = int(pcCounter, 16)
-            pcCounter = pcCounter + jump
-            pcCounter = format(pcCounter, "X")
+            pcCounter = Calculate.addPcCounter(pcCounter, jump)
             jump = 3 # Reset
 
 # 處理沒有馬上產生 Obj Code 的列
-for missDict in missObj:
-    opCode = sicOpCodeDict[missDict['opCode']]
-    address = labelAddress[missDict['label']]
-    address = opCode + address
-    objectCode[missDict['nowPC']] = address
-
-# 排序 objectCode
-sortedObjCode = dict()
-for i in sorted(objectCode.keys()):
-    sortedObjCode[i] = objectCode[i]
+objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
 
 print("Label and Address : ")
 print(labelAddress)
 print("obj Code :")
-print(sortedObjCode)
+print(objectCode)
 # print("No Obj Code list :")
 # print(missObj)
 

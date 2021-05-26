@@ -3,3 +3,4 @@ asm/
 a2.asm
 aboutObjCode.txt
 pseudo.txt
+__pycache__/
