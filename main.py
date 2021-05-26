@@ -79,6 +79,7 @@ with open(file=fileName, mode="r") as file:
             # 如果 command 讀到 WORD ，將 arg 的數字變成地址
             if command == "WORD":
                 address, jump = Process.processWORD(arg)
+                objectCode[pcCounter] = address
             
             # 如果讀到 BYTE ，讀讀看 arg 是 X、C
             elif command == "BYTE":
@@ -135,7 +136,7 @@ with open(file=fileName, mode="r") as file:
                     else:
                         labelAddress[arg] = ""
                         if jump != 2 and register != None:
-                                index = True
+                            index = True
                         else:
                             index = False
                         Process.addMissObj(pcCounter, command, arg, missObj, index)

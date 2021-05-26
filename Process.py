@@ -18,8 +18,9 @@ def processBYTE(arg):
     return arg
 
 def processWORD(word):
-    # TODO : arg 要轉成 16 進位且要 6 byte
-    address = str(word)
+    # arg 要轉成 16 進位且要 6 byte
+    address = int(word, 16)
+    address = format(address, "06X")
     jump = 3
     return address, jump
 
