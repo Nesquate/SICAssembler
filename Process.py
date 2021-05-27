@@ -5,6 +5,7 @@ def processBYTE(arg):
     # X : 直接把 16 進位拿出來當地址
     # C : 裡面的東西要先轉成 16 進位
     splitString = arg.split("'")
+
     if splitString[0] == "c" or splitString[0] == "C":
         tempChars = list()
         for a in splitString[1]:
@@ -13,8 +14,10 @@ def processBYTE(arg):
             tempChars.append(a)
         toString = ''.join(tempChars)
         return toString, int(len(toString)/2)
+    
     if splitString[0] == "x" or splitString[0] == "X":
         return splitString[1], int(len(splitString[1])/2)
+    
     return arg, 3
 
 def processWORD(word):

@@ -13,3 +13,6 @@ def calXRegister(address):
     splitString[0] = format(head, "X")
     address = ''.join(splitString)
     return address
+
+def calObjSize(objCode):
+    return int(len(objCode) / 2)

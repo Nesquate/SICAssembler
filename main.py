@@ -5,10 +5,13 @@
 3. 多寫註解
 """
 # 要讀取的檔案名稱
-fileName = "a3.asm"
+fileName = "a2.asm"
 
 # List File 檔案名稱
-outFileName = "out.lst"
+listFileName = "out.lst"
+
+# Obj File 檔案名稱
+objFileName = "out.obj"
 
 # SIC OpCode 參考檔案名稱
 sicFileName = "sicOpCode.json"
@@ -77,9 +80,10 @@ with open(file=fileName, mode="r") as file:
 
         # 如果 command 是 START ，label 為程式名稱，ar  為記憶體起始位置 (PC 起始位 )
         if command == "START":
-            # TODO : 處理 aarg 沒有 match 到的例外
+            # TODO : 處理 aarg 沒有 match 到的例
             programName = label
             pcCounter = format(int(arg, 16), "04X") # 處理補 4 個位數
+            labelAddress[label] = pcCounter
         else:
             # 如果有標籤，紀錄當下 PC Counter 以及維護標籤表
             if label is not None:
@@ -107,6 +111,10 @@ with open(file=fileName, mode="r") as file:
                 jump = int(arg)
                 # print("RESB: {}".format(jump)) # Debug
                 objectCode[pcCounter] = "" # 寫一個空值表示不用產生 ObjCode
+            
+            # 讀到 END 就是整個讀取的結束， jump 也不用再加
+            elif command == "END":
+                continue
             
             else:
                 # TODO : 改寫成 SIC/XE 時，判斷指令前先判斷前面有沒有符號
@@ -152,7 +160,6 @@ with open(file=fileName, mode="r") as file:
                         else:
                             index = False
                         Process.addMissObj(pcCounter, command, arg, missObj, index)
-            
             # 處理 pcCounter 16 進位問題
             if command != None:
                 pcCounter = Calculate.addPcCounter(pcCounter, jump)
@@ -163,11 +170,11 @@ objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, lab
 # Debug
 # print("Label and Address : ")
 # print(labelAddress)
-print("No Obj Code list :")
-print(missObj)
-print("obj Code :")
-print(objectCode)
+# print("No Obj Code list :")
+# print(missObj)
+# print("obj Code :")
+# print(objectCode)
 # print(list(objectCode.keys()))
 
-# 產出 List File
-Write.genListFile(outFileName, objectCode, text, regex, regex_space)
+# 產出 List File 與 Obj File
+Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)
