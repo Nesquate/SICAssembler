@@ -1,5 +1,41 @@
 import Calculate
 
+# 合併 Dictionary
+# 讀進來的 JSON 檔案可以轉化為 Python 的 Dictionary
+# 但是在實做上我只會檢查一個 Dict ，所以需要合併
+def mergeDict(dict1, dict2):
+    merged = {**dict1, **dict2}
+    return merged
+
+def checkExtendMode(command):
+    commandList = list(command)
+    # 如果字首有 + 那就是 ExtendMode，否則就不是
+    if commandList[0] == "+":
+        return True
+    else:
+        return False
+
+# 檢查 arg 的開頭是否包含符號
+def checkArgMode(arg):
+    argList = list(arg)
+    if argList[0] == "#":
+        return 1
+    elif argList[0] == "@":
+        return 2
+    elif argList[0] == "=":
+        return 3
+    else:
+        return 0
+
+# 去掉 + 、@ 或 # 號
+def controlLabel(command):
+    commandList = list(command) # 字串轉成一個一個字元的 List
+    tempList = list() # 暫時的 List
+    for i in range(1, len(commandList)):
+        tempList.append(commandList[i]) # 合併到暫時的 List
+    toString = ''.join(tempList) # 合併 List 變字串
+    return toString
+
 def processBYTE(arg):
     # 如果讀到 BYTE ，讀讀看 Group 3 是 X、C
     # X : 直接把 16 進位拿出來當地址
@@ -29,7 +65,7 @@ def processWORD(word):
 
 def processFormat(command, arg):
     # TODO : 改寫成 SIC/XE 時，要判斷指令格式來決定 pcCounter 的加減
-    if ',' in arg:
+    if arg is not None and ',' in arg:
         spiltString = arg.split(',')
         arg = spiltString[0]
         register = spiltString[1]

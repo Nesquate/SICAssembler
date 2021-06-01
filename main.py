@@ -5,7 +5,7 @@
 3. 多寫註解
 """
 # 要讀取的檔案名稱
-fileName = "a2.asm"
+fileName = "XE_OK_02.ASM"
 
 # List File 檔案名稱
 listFileName = "out.lst"
@@ -15,6 +15,9 @@ objFileName = "out.obj"
 
 # SIC OpCode 參考檔案名稱
 sicFileName = "sicOpCode.json"
+
+# SIC/XE OpCode 參考檔案名稱
+sicXEFileName = "sicXEOpCode.json"
 
 # 引入必要 Library
 import re
@@ -31,32 +34,41 @@ objectCode = dict()
 missObj = list()
 
 # 讀取 opCode 字典檔 (JSON 格式)
-opCodeDict = Read.readOpCodeFile(sicFileName)
+opCodeDict1 = Read.readJSONFile(sicFileName)
+opCodeDict2 = Read.readJSONFile(sicXEFileName)
+
+# 合併 opCode 字典檔
+opCodeDict = Process.mergeDict(opCodeDict1, opCodeDict2)
 
 """
 定義 Regex 語法
+(感謝 @Mikucat 提供靈感)
+- 運用 Regex 的群組概念
+- 完整語句
+    - `(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +(\+?[A-Za-z]+))(?:\r?\n| +([=@#]?[A-Za-z0-9',]*)))`
 - 分三個區域
-- 標籤部份 : `(?:(^[A-Za-z][A-Za-z0-9]*) +| +)`
-    - 第一個字必須英文字母，後面隨意
-    - 必須要在開頭
-    - 但因為有可能沒有標籤，所以上面的規則用口語化表示：
-        - 如果前面是空格，匹配掉但是不當群組
-        - 如果前面有英文字母，繼續匹配直到後面接到不是空格為止
-- 指令部份 : `(?: +([A-Za-z]+) +)`
-    - 前面一定要有空格
-    - 中間一定是英文字母，SIC/XE指令沒有數字或底線
-    - 空格匹配，但是不當群組
-- 指令參數部份 : `(?: +([A-Za-z0-9',]*) +)`
-    - 同指令部份，但是多匹配了引號和逗號
-- 註解部份
-    - 會匹配掉，但是都不當群組
-    - 註解後面接什麼字都行
-
-2021/05/26 : 因為發現在撰寫 List file 時需要匹配註解行，因此寫了新規則
-`(^\..*)|(^ +\..*)` : 開頭有至少一個空格再英文句號 或 開頭就是英文句號的
-就是註解行
+    - 標籤部份 : `(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)`
+        - 第一個字必須英文字母，後面隨意
+        - 必須要在開頭
+        - 但因為有可能沒有標籤，所以上面的規則用口語化表示：
+            - 如果前面是空格，匹配掉但是不當群組
+            - 如果前面有英文字母，繼續匹配直到後面接到不是空格為止
+        - 如果匹配到註解句點的部份，那就全部匹配掉
+    - 指令部份 : `(?: +(\+?[A-Za-z]+))`
+        - 前面一定要有空格，緊貼英文字母的開頭可能會有 `+` 表示 extended 模式
+        - 中間是英文字母，SIC/XE指令沒有數字或底線
+        - 空格匹配，但是不當群組
+    - 指令參數部份 : `(?:\r?\n| +([=@#]?[A-Za-z0-9',]*)))`
+        - 批配換行不分組 (例如 RSUB 打完之後馬上換行)
+        - 或是批配空格，緊貼英文字母的部份批配 `#` (直接取值) 或 `@` (相對取值) 或 `=` (直接賦值)
+        - 中間匹配英文字母或數字
+    - 註解部份
+        - 會匹配掉，但是都不當群組
+        - 註解後面接什麼字都行
+- 2021/05/26 : 因為發現在撰寫 List file 時需要匹配註解行，因此寫了新規則
+    - `(^\..*)|(^ +\..*)` : 開頭有至少一個空格再英文句號 或 開頭就是英文句號的**就是註解行**
 """
-regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +([A-Za-z]+) +)(?: +([A-Za-z0-9',]*)))")
+regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +(\+?[A-Za-z]+))(?:\r?\n| +([=@#]?[A-Za-z0-9',]*)))")
 regex_space = re.compile(r"(^\..*)|(^ +\..*)")
 
 # 讀 ASM 檔案並且做以下操作
@@ -68,6 +80,8 @@ with open(file=fileName, mode="r") as file:
         # 匹配分成三個群組
         match = regex.search(line)
 
+        bReg = 0 # 初始化 B 暫存器的數值
+
         """
         命名:
         label = Group 1 ，標籤
@@ -77,6 +91,20 @@ with open(file=fileName, mode="r") as file:
         label = match.group(1)
         command = match.group(2)
         arg = match.group(3)
+
+        extendMode = False # Extend 模式，預設為 False
+        """ 
+        判斷 arg 是否有 @ 或 #
+        # : 直接取值 
+        @ : 間接取值 (類似指標概念)
+
+        數字意義 :
+        argMode = 0 -> 一般標籤模式
+        argMode = 1 -> 直接取值模式
+        argMode = 2 -> 間接取值模式
+        argMode = 3 -> 直接賦值模式
+        """
+        argMode = 0 # arg 模式，預設為 0
 
         # 如果 command 是 START ，label 為程式名稱，ar  為記憶體起始位置 (PC 起始位 )
         if command == "START":
@@ -112,27 +140,51 @@ with open(file=fileName, mode="r") as file:
                 # print("RESB: {}".format(jump)) # Debug
                 objectCode[pcCounter] = "" # 寫一個空值表示不用產生 ObjCode
             
+            # TODO: 讀到 EQU ，判斷前後標籤問題
+            elif command == "EQU":
+                print("Have EQU!")
+                continue
+            
             # 讀到 END 就是整個讀取的結束， jump 也不用再加
             elif command == "END":
                 continue
             
             else:
-                # TODO : 改寫成 SIC/XE 時，判斷指令前先判斷前面有沒有符號
-                # 如果 command 讀出來的指令存在於 sicOpCodeDict
+                # 判斷指令前先判斷前面有沒有符號
+                if command is not None:
+                    # 判斷指令部份是否有 +
+                    extendMode = Process.checkExtendMode(command)
+                    # 如果確定為 Extend Mode ，那就去掉開頭
+                    if extendMode == True:
+                        command = Process.controlLabel(command)
+
+                # 如果 command 讀出來的指令存在於 opCodeDict
                 if command in opCodeDict.keys():
                     # print("NowOpCode : {}".format(opCode)) # Debug
                     
                     # 根據指令格式處理參數
                     jump, arg, register = Process.processFormat(command, arg)
 
+                    # 如果讀出來 jump == 3 且 extendMode == True，那就強制將 jump 調整成 4
+                    # TODO : 這邊可能會出問題，可以檢查
+                    if jump == 3 and extendMode == True:
+                        jump = 4
+
                     # print(arg) # Debug
                     
+                    if arg is not None:
+                        # 判斷 arg 是否有 @ 或 #
+                        argMode = Process.checkArgMode(arg)
+                        if argMode != 0:
+                            arg = Process.controlLabel(arg)
+                    
                     # 如果是 RSUB，因為 RSUB 後面沒 arg ，那就直接組指令即可
-                    if command == "RSUB" and arg == "":
+                    if command == "RSUB" and (arg == "" or arg is None):
                         opCode = str(opCodeDict[command])
                         address = "0000"
                         address = opCode + address
                         objectCode[pcCounter] = address
+                    
                     # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
                     elif arg in labelAddress.keys() and command != "RSUB":
                         # 如果標籤存在於標籤表，但是裡面的值為空，則一樣加入 missObj
@@ -152,29 +204,35 @@ with open(file=fileName, mode="r") as file:
                             else:
                                 index = False
                             Process.addMissObj(pcCounter, command, arg, missObj, index)
+                    
                     # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
                     else:
-                        labelAddress[arg] = ""
-                        if jump != 2 and register != None:
-                            index = True
-                        else:
-                            index = False
-                        Process.addMissObj(pcCounter, command, arg, missObj, index)
+                        if arg is not None:
+                            labelAddress[arg] = ""
+                            if jump != 2 and register != None:
+                                index = True
+                            else:
+                                index = False
+                            Process.addMissObj(pcCounter, command, arg, missObj, index)
+
             # 處理 pcCounter 16 進位問題
             if command != None:
                 pcCounter = Calculate.addPcCounter(pcCounter, jump)
+            
+            # Debug
+            print("Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}".format(command, extendMode, arg, argMode))
 
-# 處理沒有馬上產生 Obj Code 的列
-objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
+# # 處理沒有馬上產生 Obj Code 的列
+# objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
 
-# Debug
-# print("Label and Address : ")
-# print(labelAddress)
-# print("No Obj Code list :")
-# print(missObj)
-# print("obj Code :")
-# print(objectCode)
-# print(list(objectCode.keys()))
+# # Debug
+# # print("Label and Address : ")
+# # print(labelAddress)
+# # print("No Obj Code list :")
+# # print(missObj)
+# # print("obj Code :")
+# # print(objectCode)
+# # print(list(objectCode.keys()))
 
-# 產出 List File 與 Obj File
-Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)
+# # 產出 List File 與 Obj File
+# Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)

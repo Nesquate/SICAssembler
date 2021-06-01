@@ -1,8 +1,10 @@
 .vscode/
 asm/
 *.asm
+*.ASM
 *.lst
 *.obj
 aboutObjCode.txt
 pseudo.txt
 __pycache__/
+testFile/
