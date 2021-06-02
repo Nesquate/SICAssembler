@@ -77,8 +77,9 @@ opCodeFormat = Read.readJSONFile(opCodeFormatName)
 regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +(\+?[A-Za-z]+))(?:\r?\n| +([=@#]?[A-Za-z0-9',]*)))")
 regex_space = re.compile(r"(^\..*)|(^ +\..*)")
 
-# Jump Init
+# Init
 jump = None
+pcCounter = None
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -174,11 +175,6 @@ with open(file=fileName, mode="r") as file:
                     # 根據指令格式處理參數
                     jump, arg, register = Process.processFormat(command, arg, extendMode, opCodeFormat)
 
-                    # 如果讀出來 jump == 3 且 extendMode == True，那就強制將 jump 調整成 4
-                    # TODO : 這邊可能會出問題，可以檢查
-                    if jump == 3 and extendMode == True:
-                        jump = 4
-
                     # print(arg) # Debug
                     
                     if arg is not None:
@@ -193,6 +189,16 @@ with open(file=fileName, mode="r") as file:
                         address = "0000"
                         address = opCode + address
                         objectCode[pcCounter] = address
+
+                    # 處理 Jump = 2 時，後面地址的問題
+                    elif jump == 2:
+                        # OpCode 不需要理會 n、i 問題
+                        opCode = str(opCodeDict[command])
+                        # Debug
+                        print("Arg : {}, Register : {}".format(arg, register))
+                        address = Process.processFormat2(arg, register)
+                        address = opCode + address
+                        objectCode[pcCounter] = address
                     
                     # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
                     elif arg in labelAddress.keys() and command != "RSUB":
@@ -200,11 +206,19 @@ with open(file=fileName, mode="r") as file:
                         if labelAddress[arg] != "":
                             opCode = str(opCodeDict[command])
                             address = str(labelAddress[arg])
-                            # 如果 register 不等於 None (代表有兩個參數)，且 jump != 2 (format 2)，則進行位置運算
-                            if jump != 2 and register != None:
+
+                            # 如果 register 等於 X ，且 jump != 2 (format 2)，則進行位置運算
+                            if jump != 2 and register == "X":
                                 # print("Pass!") # Debug
                                 address = Calculate.calXRegister(address)
                                 # print(address) # Debug
+                            
+                            # TODO : 處理 opCode ni (argMode = 2 / 1) 參數的問題
+                            if argMode == 2 or argMode == 1:
+                                pass
+                            
+                            # TODO : 處理 address bpe 的問題
+
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
@@ -212,26 +226,35 @@ with open(file=fileName, mode="r") as file:
                                 index = True
                             else:
                                 index = False
+                            # TODO : 新增 extended Mode 紀錄
                             Process.addMissObj(pcCounter, command, arg, missObj, index)
                     
                     # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
                     else:
                         if arg is not None:
                             labelAddress[arg] = ""
-                            if jump != 2 and register != None:
+                            if jump != 2 and register == "X":
                                 index = True
                             else:
                                 index = False
+                            # TODO : 新增 extended Mode 紀錄
                             Process.addMissObj(pcCounter, command, arg, missObj, index)
             # 處理 pcCounter 16 進位問題
-            if command != None:
+            if command != None and (command != "END" or command != "EQU"):
+                # Debug
+                print("PC Counter : {}, Jump : {}".format(pcCounter, jump))
                 pcCounter = Calculate.addPcCounter(pcCounter, jump)
         # Debug
-        print("Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}, jump : {}".format(command, extendMode, arg, argMode, jump))
+        # print("NextPCCounter : {}, Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}, jump : {}".format(pcCounter, command, extendMode, arg, argMode, jump))
             
 
-# # 處理沒有馬上產生 Obj Code 的列
-# objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
+# 處理沒有馬上產生 Obj Code 的列
+# TODO : 處理 Jump = 2 時，後面地址的問題
+# TODO : 處理 opCode ni (argMode = 2 / 1) 參數的問題
+# TODO : 處理 address bpe 的問題
+objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
+
+print(objectCode)
 
 # # Debug
 # # print("Label and Address : ")

@@ -93,6 +93,34 @@ def processFormat(command, arg, extendMode, opCodeFormat):
 
     return jump, arg, register
 
+# 處理 Format 2 的地址問題
+def processFormat2(arg, register):
+    registerDict = {
+        "A" : "0",
+        "X" : "1",
+        "L" : "2",
+        "B" : "3",
+        "S" : "4",
+        "T" : "5",
+        "F" : "6"
+    }
+    # 如果存在於 Register Dict 裡面，直接拿出來取值
+    if arg in registerDict.keys():
+        argCode = registerDict[arg]
+    # Register 這個變數有可能是存放純數字 (如 SHIFTL)
+    # 所以如果找不到的話
+    # 如果有數字，就直接把該數字轉成 16 進位
+    # 否則填 0 處理
+    if register in registerDict.keys():
+        regCode = registerDict[register]
+    elif register != None:
+        regCode = int(register, 16)
+        regCode = format(regCode, "X")
+    else:
+        regCode = "0"
+    
+    return argCode+regCode
+
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
 def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
     # TODO : 改寫成 SIC/XE 時，要判斷的不只有 Index

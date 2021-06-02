@@ -14,5 +14,6 @@ def calXRegister(address):
     address = ''.join(splitString)
     return address
 
+# 計算共有多少 Byte
 def calObjSize(objCode):
     return int(len(objCode) / 2)
