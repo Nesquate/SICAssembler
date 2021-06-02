@@ -19,6 +19,9 @@ sicFileName = "sicOpCode.json"
 # SIC/XE OpCode 參考檔案名稱
 sicXEFileName = "sicXEOpCode.json"
 
+# OpCode Format 參考檔案名稱
+opCodeFormatName = "opCodeFormat.json"
+
 # 引入必要 Library
 import re
 import Process, Read, Calculate, Write
@@ -39,6 +42,9 @@ opCodeDict2 = Read.readJSONFile(sicXEFileName)
 
 # 合併 opCode 字典檔
 opCodeDict = Process.mergeDict(opCodeDict1, opCodeDict2)
+
+# 開啟 OpCode Foramt 參照檔案
+opCodeFormat = Read.readJSONFile(opCodeFormatName)
 
 """
 定義 Regex 語法
@@ -70,6 +76,9 @@ opCodeDict = Process.mergeDict(opCodeDict1, opCodeDict2)
 """
 regex = re.compile(r"(?:\..*|(?:(^[A-Za-z][A-Za-z0-9]*) +| +)(?: +(\+?[A-Za-z]+))(?:\r?\n| +([=@#]?[A-Za-z0-9',]*)))")
 regex_space = re.compile(r"(^\..*)|(^ +\..*)")
+
+# Jump Init
+jump = None
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -163,7 +172,7 @@ with open(file=fileName, mode="r") as file:
                     # print("NowOpCode : {}".format(opCode)) # Debug
                     
                     # 根據指令格式處理參數
-                    jump, arg, register = Process.processFormat(command, arg)
+                    jump, arg, register = Process.processFormat(command, arg, extendMode, opCodeFormat)
 
                     # 如果讀出來 jump == 3 且 extendMode == True，那就強制將 jump 調整成 4
                     # TODO : 這邊可能會出問題，可以檢查
@@ -214,13 +223,12 @@ with open(file=fileName, mode="r") as file:
                             else:
                                 index = False
                             Process.addMissObj(pcCounter, command, arg, missObj, index)
-
             # 處理 pcCounter 16 進位問題
             if command != None:
                 pcCounter = Calculate.addPcCounter(pcCounter, jump)
+        # Debug
+        print("Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}, jump : {}".format(command, extendMode, arg, argMode, jump))
             
-            # Debug
-            print("Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}".format(command, extendMode, arg, argMode))
 
 # # 處理沒有馬上產生 Obj Code 的列
 # objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)

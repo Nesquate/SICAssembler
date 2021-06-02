@@ -63,14 +63,35 @@ def processWORD(word):
     jump = 3
     return address, jump
 
-def processFormat(command, arg):
+def processFormat(command, arg, extendMode, opCodeFormat):
     # TODO : 改寫成 SIC/XE 時，要判斷指令格式來決定 pcCounter 的加減
+
+    # 初始化變數
+    register = None
+    jump = 3
+    
+    # 如果遇到逗點 => 切割成 arg 和 register
+    # arg 也可以是 register，總而言之就是切成兩個部份
     if arg is not None and ',' in arg:
         spiltString = arg.split(',')
         arg = spiltString[0]
         register = spiltString[1]
-        return 3, arg, register
-    return 3, arg, None
+    
+    # 判斷指令格式
+    # 如果 Format = 3，看一下是否有 extendMode (有的話變 4)
+    # 如果 Format = 2， jump = 2
+    # 如果 Format = 1， jump = 1
+    if opCodeFormat[command] == 3:
+        if extendMode == True:
+            jump = 4
+        else:
+            jump = 3
+    if opCodeFormat[command] == 2:
+        jump = 2
+    if opCodeFormat[command] == 1:
+        jump = 1
+
+    return jump, arg, register
 
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
 def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
