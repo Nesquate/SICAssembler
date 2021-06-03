@@ -156,6 +156,11 @@ with open(file=fileName, mode="r") as file:
             elif command == "EQU":
                 print("Have EQU!")
                 continue
+
+            # TODO: 讀到 BASE，判斷 BASE 標籤的問題
+            elif command == "BASE":
+                print("Have BASE")
+                continue
             
             # 讀到 END 就是整個讀取的結束， jump 也不用再加
             elif command == "END":
@@ -273,4 +278,4 @@ print(objectCode)
 # # print(list(objectCode.keys()))
 
 # # 產出 List File 與 Obj File
-# Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)
+Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)
