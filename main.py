@@ -23,6 +23,7 @@ sicXEFileName = "sicXEOpCode.json"
 opCodeFormatName = "opCodeFormat.json"
 
 # 引入必要 Library
+from os import EX_TEMPFAIL
 import re
 import Process, Read, Calculate, Write
 
@@ -80,6 +81,7 @@ regex_space = re.compile(r"(^\..*)|(^ +\..*)")
 # Init
 jump = None
 pcCounter = None
+bRegLabel = "0"
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -213,21 +215,27 @@ with open(file=fileName, mode="r") as file:
                                 address = Calculate.calXRegister(address)
                                 # print(address) # Debug
                             
-                            # TODO : 處理 opCode ni (argMode = 2 / 1) 參數的問題
-                            if argMode == 2 or argMode == 1:
-                                pass
+                            # 處理 opCode ni (argMode = 2 / 1) 參數的問題
+                            opCode = Process.opCodeXEProcess(opCode, argMode)
                             
-                            # TODO : 處理 address bpe 的問題
+                            # TODO : 處理直接取值 (argMode = 1) 的問題
+                            # 處理 address bpe 的問題
+                            if extendMode == True:
+                                extendModeInt = 1
+                            else:
+                                extendModeInt = 0
+                            if address != "":
+                                address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendModeInt)
 
                             address = opCode + address
                             objectCode[pcCounter] = address
                         else:
-                            if jump != 2 and register != None:
+                            if jump != 2 and register == "X":
                                 index = True
                             else:
                                 index = False
-                            # TODO : 新增 extended Mode 紀錄
-                            Process.addMissObj(pcCounter, command, arg, missObj, index)
+                            
+                            Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
                     
                     # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
                     else:
@@ -237,8 +245,8 @@ with open(file=fileName, mode="r") as file:
                                 index = True
                             else:
                                 index = False
-                            # TODO : 新增 extended Mode 紀錄
-                            Process.addMissObj(pcCounter, command, arg, missObj, index)
+                            
+                            Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
             # 處理 pcCounter 16 進位問題
             if command != None and (command != "END" or command != "EQU"):
                 # Debug
@@ -249,10 +257,9 @@ with open(file=fileName, mode="r") as file:
             
 
 # 處理沒有馬上產生 Obj Code 的列
-# TODO : 處理 Jump = 2 時，後面地址的問題
-# TODO : 處理 opCode ni (argMode = 2 / 1) 參數的問題
+# TODO : 處理直接取值 (argMode = 1) 的問題
 # TODO : 處理 address bpe 的問題
-objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress)
+objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel)
 
 print(objectCode)
 

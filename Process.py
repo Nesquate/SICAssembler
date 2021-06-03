@@ -121,14 +121,43 @@ def processFormat2(arg, register):
     
     return argCode+regCode
 
+# 處理 opCode ni 定址問題
+def opCodeXEProcess(opCode, argMode):
+    if argMode == 0:
+        opCode = Calculate.addHex(opCode, 3)
+    elif argMode == 1:
+        opCode = Calculate.addHex(opCode, 1)
+    elif argMode == 2:
+        opCode = Calculate.addHex(opCode, 2)
+    else:
+        return opCode
+    return opCode
+
+
+
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
-def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
+def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel):
     # TODO : 改寫成 SIC/XE 時，要判斷的不只有 Index
     for missDict in missObj:
         opCode = opCodeDict[missDict['opCode']]
         address = labelAddress[missDict['label']]
+        argMode = missDict['argMode']
+        pcCounter = missDict['nowPC']
+        jump = missDict['nowJump']
+        extendMode = missDict['extendMode']
+        
+        # 處理 Index 
         if missDict['index'] == 1:
             address = Calculate.calXRegister(address)
+        
+        # 處理 argMode
+        opCode = opCode = opCodeXEProcess(opCode, argMode)
+
+        # TODO : 處理直接取值 (argMode = 1) 的問題
+        # 處理 address bpe 的問題
+        if address != "":
+            address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendMode)
+        
         address = opCode + address
         objectCode[missDict['nowPC']] = address
     # 排序 objectCode
@@ -138,15 +167,23 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress):
     return sortedObjCode
 
 # 將目前無法產生 ObjCode 的行列加入列表中
-def addMissObj(pcCounter, command, arg, missObj, index):
+def addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump):
     tempdict = dict()
     tempdict['nowPC'] = pcCounter
     tempdict['opCode'] = command
     tempdict['label'] = arg
+    tempdict['argMode'] = argMode
+    tempdict['nowJump'] = jump
+    
     # 判斷無法產生的 ObjCode 是否需要 Index 處理
     # TODO : 改寫成 SIC/XE 時，要判斷的不只有 Index
     if index == True:
         tempdict['index'] = 1
     else:
         tempdict['index'] = 0
+    # 判斷是否需要 extendMode 處理
+    if extendMode == True:
+        tempdict['extendMode'] = 1
+    else:
+        tempdict['extendMode'] = 0
     missObj.append(tempdict)
