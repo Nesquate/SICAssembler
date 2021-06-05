@@ -142,7 +142,7 @@ def immediatelyValue(address):
 
 
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
-def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr):
+def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr, literalPC):
     # TODO : 改寫成 SIC/XE 時，要判斷的不只有 Index
     for missDict in missObj:
         opCode = opCodeDict[missDict['opCode']]
@@ -151,6 +151,8 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
         pcCounter = missDict['nowPC']
         jump = missDict['nowJump']
         extendMode = missDict['extendMode']
+        #Debug
+        # print("{}, {}, {}, {}, {}, {}".format(opCode, address, argMode, pcCounter, jump, extendMode))
 
         # BASE : 如果標籤等於被記錄下來當作 BASE 的標籤
         # 則把 BASE 標籤代表的數值讀出來替換
@@ -168,10 +170,29 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
         #     print(address)
         #     print(pcCounter)
 
+        # 處理直接賦值的問題
+        if argMode == 3:
+            """
+            這裡簡單來說就是
+            拿 Literal 代表的 PC 數
+            去當作地址計算 PC Relative / Base Relative
+            """
+            literalPCKey = list(literalPC.keys())
+            literalPCValue = list(literalPC.values())
+            literalListCount = 0
+            for i in literalPCValue:
+                if i == missDict['label']:
+                    break
+                literalListCount += 1
+            print("Debug : i = {}, count = {}".format(i, literalListCount))
+            address = literalPCKey[literalListCount]
+            print(address)
+            
+
         # 處理 address bpe 的問題
         if address != "":
             # Debug
-            print("Debug : label = {}, PC = {}".format(missDict['label'], missDict['nowPC']))
+            # print("Debug : label = {}, PC = {}".format(missDict['label'], missDict['nowPC']))
             address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendMode)
         
         address = opCode + address

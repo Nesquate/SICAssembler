@@ -1,11 +1,55 @@
+from typing import Counter
 import Calculate, GenCards
+
+
 
 # 印空格後接下去
 def printSpace(listFile, line):
     listFile.write("                ")
     listFile.write(line)
 
-def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space):
+# 印出 Literal
+def printLiteral(listFile, literalPC, literalCounter, literalAddr):
+    literalIndexList = list(literalPC)
+    for i in range(literalCounter, len(literalIndexList)):
+        if "STOP" in literalIndexList[i]:break
+
+        # 讀出地址與 Literal
+        nowPC = literalIndexList[i]
+        literal = literalPC[nowPC] 
+        address = literalAddr[literal]
+        
+        listFile.write(nowPC) # 寫 PC
+        
+        # 數空格
+        for j in range(len(nowPC), 8):
+            listFile.write(" ")
+
+        # 寫Obj Code
+        listFile.write(address)
+
+        # 數空格
+        for j in range(len(address), 16):
+            listFile.write(" ")
+        
+        # 寫 * 號
+        listFile.write("*")
+
+        # 空七格
+        for j in range(1, 8):
+            listFile.write(" ")
+
+        # 寫 Literal
+        listFile.write(literal)
+
+        # 換行
+        listFile.write("\n")
+        literalCounter += 1
+    literalCounter += 1 # 不這樣做下次再次計算時會直接算到 STOP 而停止
+
+    return literalCounter
+
+def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space, literalPC, literalAddr):
     """
     產生 List File
     只有START行、註解行、END行不需要 obj code 和 PC (前面直接空 16 格)
@@ -18,6 +62,8 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
 
     TODO : 改寫成 SIC/XE 時，寫 M 卡片
     """
+    # 初始化
+    literalCounter = 0
     counter = 0 # List : 計算印到第幾個 Obj Code
     dictKey = list(objectCode.keys()) # 開一個 PC List 待會用來找 Obj Code
 
@@ -58,6 +104,11 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
 
                 elif (command == "END"):
                     printSpace(listFile, line)
+                    listFile.write("\n") # 換行一下
+                    # 印出剩下的賦值
+                    literalIndexList = list(literalPC)
+                    literalCounter = printLiteral(listFile, literalPC, literalCounter, literalAddr)
+                    
                     endArgAddress = labelAddress[arg]
                     # # Obj : 產出最後的 T 卡片 (如果 lenT < 30 的話)
                     # if startT != None and lenT < 30:
@@ -87,6 +138,8 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                 # TODO : 如果是 LTORG， LTORG 整行大空格，並且把賦值往下寫
                 elif command == "LTORG":
                     printSpace(listFile, line)
+                    literalCounter = printLiteral(listFile, literalPC, literalCounter, literalAddr)
+
                     continue
                 
                 # List : 否則直接寫出 PC 與 Obj Code

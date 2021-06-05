@@ -32,10 +32,16 @@ import Process, Read, Calculate, Write
 1. labelAddress : 標籤與 PC 的對應
 2. objectCode : Object Code 表
 3. missObj : 還沒有 Obj Code 的迷途羔羊
+4. literalList : 維護 Literal 有多少的表
+5. literalPC : Literal 與 PC 對應 (after LTORG or END)
+6. literalAddr : Literal 與 Addr 對應 (after LTORG or END)
 """
 labelAddress = dict()
 objectCode = dict()
 missObj = list()
+literalList = list()
+literalPC = dict()
+literalAddr = dict()
 
 # 讀取 opCode 字典檔 (JSON 格式)
 opCodeDict1 = Read.readJSONFile(sicFileName)
@@ -84,6 +90,7 @@ pcCounter = None
 bRegLabel = "0"
 baseLabelStr = None
 haveBase = False
+literalCount = 0
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -163,16 +170,41 @@ with open(file=fileName, mode="r") as file:
             # 讀到 BASE，判斷 BASE 標籤的問題
             # 把 arg 記錄下來，並且分別判斷是標籤還是整數
             elif command == "BASE":
-                print("Have BASE")
                 baseLabelStr = arg
                 continue
             
             # TODO : 處理 LTORG 的問題
-            elif command == "LTORG":
-                continue
-            
-            # 讀到 END 就是整個讀取的結束， jump 也不用再加
-            elif command == "END":
+            elif command == "LTORG" or command == "END":
+                # 把 literal 表的值通通讀出來，賦予 PC 後再繼續
+                # 因為中間可能會斷掉，所以用個 STOP 作為提醒
+                for i in range(literalCount, len(literalList)):
+                    infoDict = literalList[i]
+
+                    if infoDict['literal'] == "STOP":
+                        continue
+
+                    jump = infoDict['jump']
+                    address = infoDict['address']
+                    
+                    #Debug
+                    print("Debug : pcCounter = {}, address = {}".format(pcCounter, address))
+
+                    #加入 PC 與 Literal 對應以方便計算
+                    literalPC[pcCounter] = infoDict['literal']
+
+                    #加入 Addr 與 Literal 對應
+                    literalAddr[infoDict['literal']] = address
+                    
+                    labelAddress[address] = pcCounter
+                    # objectCode[pcCounter] = address
+                    pcCounter = Calculate.addPcCounter(pcCounter, jump)
+                    literalCount += 1
+                tempDict = dict()
+                stopStr = "STOP" + str(literalCount)
+                tempDict['literal'] = "STOP"
+                literalPC[stopStr] = "STOP"
+                literalAddr[stopStr] = "STOP"
+                literalList.append(tempDict)
                 continue
             
             else:
@@ -215,6 +247,26 @@ with open(file=fileName, mode="r") as file:
                         address = Process.processFormat2(arg, register)
                         address = opCode + address
                         objectCode[pcCounter] = address
+
+                    # TODO : 處理 Literal
+                    elif argMode == 3:
+                        tempDict = dict()
+                        tempDict['literal'] = arg
+                        
+                        # 當 BYTE 轉換，紀錄到 Literal 維護表 (之後用於 LTORG 與 END 的 PC Counter 計算以及 List File 處理用)
+                        address, jump = Process.processBYTE(arg)
+                        tempDict['address'] = address
+                        tempDict['jump'] = jump
+
+                        # 當不重複的時候才要加到 list 上
+                        if tempDict not in literalList:
+                            literalList.append(tempDict)
+
+                        # 把轉換後的地址丟到 labelAddress
+                        labelAddress[arg] = "" # 先用空值處理，到 LTORG 階段會直接賦予 PC
+
+                        # 直接把目前的 command 當作 missObj 處理
+                        Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
                     
                     # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
                     elif arg in labelAddress.keys() and command != "RSUB":
@@ -247,7 +299,7 @@ with open(file=fileName, mode="r") as file:
                                     extendModeInt = 0
                                 if address != "":
                                     # Debug
-                                    print("Debug : (A) label = {}, command = {}, arg={}, PC={}".format(label, command, arg, pcCounter))
+                                    # print("Debug : (A) label = {}, command = {}, arg={}, PC={}".format(label, command, arg, pcCounter))
                                     address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendModeInt)
 
                                 address = opCode + address
@@ -290,18 +342,21 @@ with open(file=fileName, mode="r") as file:
             
 
 # 處理沒有馬上產生 Obj Code 的列
-objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr)
+objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr, literalPC)
 
-print(objectCode)
+# print(missObj)
+
+# print(objectCode)
+# print(literalList)
 
 # # Debug
 # # print("Label and Address : ")
 # # print(labelAddress)
 # # print("No Obj Code list :")
-# # print(missObj)
+# print(missObj)
 # # print("obj Code :")
 # # print(objectCode)
 # # print(list(objectCode.keys()))
 
 # # 產出 List File 與 Obj File
-Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space)
+Write.genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space, literalPC, literalAddr)
