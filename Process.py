@@ -142,7 +142,7 @@ def immediatelyValue(address):
 
 
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
-def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel):
+def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr):
     # TODO : 改寫成 SIC/XE 時，要判斷的不只有 Index
     for missDict in missObj:
         opCode = opCodeDict[missDict['opCode']]
@@ -151,6 +151,11 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
         pcCounter = missDict['nowPC']
         jump = missDict['nowJump']
         extendMode = missDict['extendMode']
+
+        # BASE : 如果標籤等於被記錄下來當作 BASE 的標籤
+        # 則把 BASE 標籤代表的數值讀出來替換
+        if missDict['label'] == baseLabelStr:
+            bRegLabel = labelAddress[missDict['label']]
         
         # 處理 Index 
         if missDict['index'] == 1:

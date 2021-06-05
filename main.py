@@ -82,6 +82,7 @@ regex_space = re.compile(r"(^\..*)|(^ +\..*)")
 jump = None
 pcCounter = None
 bRegLabel = "0"
+baseLabelStr = None
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -158,9 +159,15 @@ with open(file=fileName, mode="r") as file:
                 print("Have EQU!")
                 continue
 
-            # TODO: 讀到 BASE，判斷 BASE 標籤的問題
+            # 讀到 BASE，判斷 BASE 標籤的問題
+            # 把 arg 記錄下來，並且分別判斷是標籤還是整數
             elif command == "BASE":
                 print("Have BASE")
+                baseLabelStr = arg
+                continue
+            
+            # TODO : 處理 LTORG 的問題
+            elif command == "LTORG":
                 continue
             
             # 讀到 END 就是整個讀取的結束， jump 也不用再加
@@ -212,6 +219,11 @@ with open(file=fileName, mode="r") as file:
                     elif arg in labelAddress.keys() and command != "RSUB":
                         # 如果標籤存在於標籤表，但是裡面的值為空，則一樣加入 missObj
                         if labelAddress[arg] != "":
+                            # BASE : 如果標籤等於被記錄下來當作 BASE 的標籤
+                            # 則把 BASE 標籤代表的數值讀出來替換
+                            if arg == baseLabelStr:
+                                bRegLabel = labelAddress[arg]
+
                             opCode = str(opCodeDict[command])
                             address = str(labelAddress[arg])
 
@@ -242,8 +254,8 @@ with open(file=fileName, mode="r") as file:
                             
                             Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
                     
-                    # 否則，非加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
-                    # 直接取值 (argMode = 1) 則直接計算
+                    # 否則，非直接取值，加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
+                    # 直接取值 (argMode = 1) 要先處理再放入
                     else:
                         if arg is not None:
                             # 處理直接取值 (argMode = 1) 的問題
@@ -270,7 +282,7 @@ with open(file=fileName, mode="r") as file:
             
 
 # 處理沒有馬上產生 Obj Code 的列
-objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel)
+objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel, baseLabelStr)
 
 print(objectCode)
 
