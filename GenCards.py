@@ -43,3 +43,16 @@ def genECard(objFile, endArgAddress):
     endArgAddrInt = int(endArgAddress, 16)
     endArgAddress = format(endArgAddrInt, "06X")
     objFile.write(endArgAddress)
+
+# Obj : 產出 M 卡片
+def genMCard(objFile, mRecording):
+    # 偷懶作法 : PC 全部往後 + 3、全印 5 個半 byte
+    for pc in mRecording.keys():
+        objFile.write("H")
+        pcPlus = Calculate.addPcCounter(pc, 3)
+        pcPlus = format(int(pcPlus, 16), "06X")
+        halfByte = len(mRecording[pc]) - 3
+        halfByte = format(halfByte, "02X")
+        objFile.write(pcPlus)
+        objFile.write(halfByte)
+        objFile.write("\n")

@@ -6,14 +6,18 @@ def printSpace(listFile, line):
     listFile.write("                ")
     listFile.write(line)
 
-# 寫出 T 卡片
-def printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode):
+# 寫出 T 卡片並同時紀錄 M 卡片屬性
+def printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode, mRecording):
     # Obj : 產出 T 卡片
     # 如果 startT 沒有值，代表新的 T 卡片產出
     if startT == None and (command != "RESW" and command != "RESB"):
         startT = dictKey[counter]
         # print("Start T : {}".format(startT))
         lenT += len(objectCode[dictKey[counter]]) # 讀到之後，算一下長度
+        
+        # 監測一下會跑出 M 卡片的各種可能
+        if len(objectCode[dictKey[counter]]) > 6:
+            mRecording[dictKey[counter]] = objectCode[dictKey[counter]]
 
     # 如果 lenT = 0 (代表根本沒有開始) 然後後面又接了 RESW 或 RESB
     # => 什麼都不要做
@@ -24,6 +28,10 @@ def printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode):
         if (command != "RESW" and command != "RESB") and command != "BYTE":
             if (lenT + len(objectCode[dictKey[counter]])) <= 60: 
                 lenT += len(objectCode[dictKey[counter]])
+            
+            # 監測一下會跑出 M 卡片的各種可能
+            if len(objectCode[dictKey[counter]]) > 6:
+                mRecording[dictKey[counter]] = objectCode[dictKey[counter]]
         
         # 如果是 BYTE， 因為長度不一定是固定 3 Bytes，直接結束並產生 T 卡片
         elif command == "BYTE":
@@ -106,13 +114,13 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
     END 行產生 E 卡片
 
     其他 (不包含 RESW 與 RESB) 則產生 T 卡片
-
-    TODO : 改寫成 SIC/XE 時，寫 M 卡片
+    當有 extend 模式的 obj (長度大於 6) 則產生 M 卡片
     """
     # 初始化
     literalCounter = 0
     counter = 0 # List : 計算印到第幾個 Obj Code
     dictKey = list(objectCode.keys()) # 開一個 PC List 待會用來找 Obj Code
+    mRecording = dict()
 
     # Obj : 找出起點位置 和 計算終點位置
     startAt = dictKey[0]
@@ -169,6 +177,9 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                             GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
                         else:
                             print("BUG")
+                    
+                    # TODO : Obj : 產出 M 卡片
+                    GenCards.genMCard(objFile,mRecording)
 
                     # Obj : 產出 E 卡片
                     GenCards.genECard(objFile, endArgAddress)
@@ -209,7 +220,7 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                     listFile.write(line) # 寫入 asm 的內容
                     
                     # # Obj : 產出 T 卡片
-                    startT, lenT = printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode)
+                    startT, lenT = printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode, mRecording)
                     
 
                     counter+=1
