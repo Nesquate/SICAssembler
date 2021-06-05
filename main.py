@@ -109,6 +109,7 @@ with open(file=fileName, mode="r") as file:
         判斷 arg 是否有 @ 或 #
         # : 直接取值 
         @ : 間接取值 (類似指標概念)
+        = : 直接賦值
 
         數字意義 :
         argMode = 0 -> 一般標籤模式
@@ -202,7 +203,7 @@ with open(file=fileName, mode="r") as file:
                         # OpCode 不需要理會 n、i 問題
                         opCode = str(opCodeDict[command])
                         # Debug
-                        print("Arg : {}, Register : {}".format(arg, register))
+                        # print("Arg : {}, Register : {}".format(arg, register))
                         address = Process.processFormat2(arg, register)
                         address = opCode + address
                         objectCode[pcCounter] = address
@@ -222,8 +223,7 @@ with open(file=fileName, mode="r") as file:
                             
                             # 處理 opCode ni (argMode = 2 / 1) 參數的問題
                             opCode = Process.opCodeXEProcess(opCode, argMode)
-                            
-                            # TODO : 處理直接取值 (argMode = 1) 的問題
+
                             # 處理 address bpe 的問題
                             if extendMode == True:
                                 extendModeInt = 1
@@ -242,28 +242,34 @@ with open(file=fileName, mode="r") as file:
                             
                             Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
                     
-                    # 否則加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
+                    # 否則，非加入 labelAddress 對應 (先使用空白值當值)，且加入 missObj
+                    # 直接取值 (argMode = 1) 則直接計算
                     else:
                         if arg is not None:
-                            labelAddress[arg] = ""
-                            if jump != 2 and register == "X":
-                                index = True
+                            # 處理直接取值 (argMode = 1) 的問題
+                            # 必須先判斷字串是否都是整數 (isdigit())
+                            if argMode == 1 and arg.isdigit() == True:
+                                arg = Process.immediatelyValue(arg)
+                                labelAddress[arg] = arg
                             else:
-                                index = False
+                                labelAddress[arg] = ""
+                                if jump != 2 and register == "X":
+                                    index = True
+                                else:
+                                    index = False
                             
                             Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
+            
             # 處理 pcCounter 16 進位問題
             if command != None and (command != "END" or command != "EQU"):
                 # Debug
-                print("PC Counter : {}, Jump : {}".format(pcCounter, jump))
+                # print("PC Counter : {}, Jump : {}".format(pcCounter, jump))
                 pcCounter = Calculate.addPcCounter(pcCounter, jump)
         # Debug
         # print("NextPCCounter : {}, Command : {}, ExtendMode == {} ; Arg : {}, ArgMode == {}, jump : {}".format(pcCounter, command, extendMode, arg, argMode, jump))
             
 
 # 處理沒有馬上產生 Obj Code 的列
-# TODO : 處理直接取值 (argMode = 1) 的問題
-# TODO : 處理 address bpe 的問題
 objectCode =  Process.transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLabel)
 
 print(objectCode)

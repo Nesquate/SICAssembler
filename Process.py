@@ -133,6 +133,12 @@ def opCodeXEProcess(opCode, argMode):
         return opCode
     return opCode
 
+# 處理直接取值(#)的問題
+def immediatelyValue(address):
+    address = int(address) # 字串轉整數
+    address = format(address, "04X") # 10 進位整數轉成 16 進位 4 位整數並轉成字串
+    return address
+
 
 
 # 將尚未產生 ObjCode 的部份轉為 ObjCode
@@ -152,8 +158,11 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
         
         # 處理 argMode
         opCode = opCode = opCodeXEProcess(opCode, argMode)
+        # # Debug
+        # if argMode == 1:
+        #     print(address)
+        #     print(pcCounter)
 
-        # TODO : 處理直接取值 (argMode = 1) 的問題
         # 處理 address bpe 的問題
         if address != "":
             address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendMode)
