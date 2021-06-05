@@ -170,6 +170,8 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
 
         # 處理 address bpe 的問題
         if address != "":
+            # Debug
+            print("Debug : label = {}, PC = {}".format(missDict['label'], missDict['nowPC']))
             address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendMode)
         
         address = opCode + address

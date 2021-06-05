@@ -58,15 +58,35 @@ def calAddress(address, pcCounter, jump, bRegLabel, extendMode):
     nextPC = addPcCounter(pcCounter, jump)
 
     # 計算差距
+    # pcRelate = subHexOutInt(nextPC, tempString)
     pcRelate = subHexOutInt(tempString, nextPC)
+    print("Debug : PC Relate = {}".format(pcRelate))
 
     # 如果 pcRelate >= 0 則可以直接拿 pcRelate 組地址
-    if pcRelate >= 0:
+    if pcRelate <= 4096 and pcRelate >= -4095:
         head = head + 2 # PC Relate + 2
+
+        # 位元反轉，小於 0 的時候需要二補數處理
+        if pcRelate < 0:
+            pcRelate = pcRelate & 0xFFF
+        
         relateString = format(pcRelate, "03X") # 轉十六進位補三位 (字串)
+    
     else: # 如果 pcRelate < 0，則需要用 B Register 的值進行加減
         head = head + 4 # B Register Relate + 4
+        
+        #Debug
+        print("Debug : Register B Value = {}".format(bRegLabel))
+
         bRegRelate = subHexOutInt(tempString, bRegLabel)
+        
+        #Debug
+        print("Debug : bRegRelate = {}".format(bRegRelate))
+        print("")
+
+        # 位元反轉，小於 0 的時候需要二補數處理
+        if bRegRelate < 0:
+            bRegRelate = bRegRelate & 0xFFF 
         relateString = format(bRegRelate, "03X") # 轉十六進位補三位 (字串)
     
     head = format(head, "X") # 10 進位轉 16 進位

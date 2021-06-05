@@ -83,6 +83,7 @@ jump = None
 pcCounter = None
 bRegLabel = "0"
 baseLabelStr = None
+haveBase = False
 
 # 讀 ASM 檔案並且做以下操作
 with open(file=fileName, mode="r") as file:
@@ -217,12 +218,13 @@ with open(file=fileName, mode="r") as file:
                     
                     # 如果 arg 的標籤存在於標籤表，讀出地址，並且與 opCode 合併，且加入 Obj Code 對應表
                     elif arg in labelAddress.keys() and command != "RSUB":
-                        # 如果標籤存在於標籤表，但是裡面的值為空，則一樣加入 missObj
+                        # 如果標籤存在於標籤表，但是裡面的值為空，或是當前沒有 BASE，則一樣加入 missObj
                         if labelAddress[arg] != "":
                             # BASE : 如果標籤等於被記錄下來當作 BASE 的標籤
                             # 則把 BASE 標籤代表的數值讀出來替換
                             if arg == baseLabelStr:
                                 bRegLabel = labelAddress[arg]
+                                haveBase = True
 
                             opCode = str(opCodeDict[command])
                             address = str(labelAddress[arg])
@@ -237,15 +239,21 @@ with open(file=fileName, mode="r") as file:
                             opCode = Process.opCodeXEProcess(opCode, argMode)
 
                             # 處理 address bpe 的問題
-                            if extendMode == True:
-                                extendModeInt = 1
-                            else:
-                                extendModeInt = 0
-                            if address != "":
-                                address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendModeInt)
+                            # 如果有 BASE，那就直接處理，否則也加入 addMissObj 稍後處理
+                            if haveBase == True:
+                                if extendMode == True:
+                                    extendModeInt = 1
+                                else:
+                                    extendModeInt = 0
+                                if address != "":
+                                    # Debug
+                                    print("Debug : (A) label = {}, command = {}, arg={}, PC={}".format(label, command, arg, pcCounter))
+                                    address = Calculate.calAddress(address, pcCounter, jump, bRegLabel, extendModeInt)
 
-                            address = opCode + address
-                            objectCode[pcCounter] = address
+                                address = opCode + address
+                                objectCode[pcCounter] = address
+                            else:
+                                Process.addMissObj(pcCounter, command, arg, missObj, index, argMode, extendMode, jump)
                         else:
                             if jump != 2 and register == "X":
                                 index = True
