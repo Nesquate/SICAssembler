@@ -183,11 +183,11 @@ with open(file=fileName, mode="r") as file:
                     if infoDict['literal'] == "STOP":
                         continue
 
-                    jump = infoDict['jump']
+                    jumpltr = infoDict['jump']
                     address = infoDict['address']
                     
                     #Debug
-                    print("Debug : pcCounter = {}, address = {}".format(pcCounter, address))
+                    # print("Debug : pcCounter = {}, address = {}".format(pcCounter, address))
 
                     #加入 PC 與 Literal 對應以方便計算
                     literalPC[pcCounter] = infoDict['literal']
@@ -196,8 +196,9 @@ with open(file=fileName, mode="r") as file:
                     literalAddr[infoDict['literal']] = address
                     
                     labelAddress[address] = pcCounter
-                    # objectCode[pcCounter] = address
-                    pcCounter = Calculate.addPcCounter(pcCounter, jump)
+                    # 加入 pc 與 位置對應
+                    objectCode[pcCounter] = address
+                    pcCounter = Calculate.addPcCounter(pcCounter, jumpltr)
                     literalCount += 1
                 tempDict = dict()
                 stopStr = "STOP" + str(literalCount)
@@ -254,9 +255,9 @@ with open(file=fileName, mode="r") as file:
                         tempDict['literal'] = arg
                         
                         # 當 BYTE 轉換，紀錄到 Literal 維護表 (之後用於 LTORG 與 END 的 PC Counter 計算以及 List File 處理用)
-                        address, jump = Process.processBYTE(arg)
+                        address, jumpltr = Process.processBYTE(arg)
                         tempDict['address'] = address
-                        tempDict['jump'] = jump
+                        tempDict['jump'] = jumpltr
 
                         # 當不重複的時候才要加到 list 上
                         if tempDict not in literalList:

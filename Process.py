@@ -184,9 +184,9 @@ def transMissObjToObjCode(missObj, opCodeDict, objectCode, labelAddress, bRegLab
                 if i == missDict['label']:
                     break
                 literalListCount += 1
-            print("Debug : i = {}, count = {}".format(i, literalListCount))
+            # print("Debug : i = {}, count = {}".format(i, literalListCount))
             address = literalPCKey[literalListCount]
-            print(address)
+            # print(address)
             
 
         # 處理 address bpe 的問題

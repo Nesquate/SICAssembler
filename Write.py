@@ -1,53 +1,100 @@
 from typing import Counter
 import Calculate, GenCards
 
-
-
 # 印空格後接下去
 def printSpace(listFile, line):
     listFile.write("                ")
     listFile.write(line)
 
+# 寫出 T 卡片
+def printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode):
+    # Obj : 產出 T 卡片
+    # 如果 startT 沒有值，代表新的 T 卡片產出
+    if startT == None and (command != "RESW" and command != "RESB"):
+        startT = dictKey[counter]
+        # print("Start T : {}".format(startT))
+        lenT += len(objectCode[dictKey[counter]]) # 讀到之後，算一下長度
+
+    # 如果 lenT = 0 (代表根本沒有開始) 然後後面又接了 RESW 或 RESB
+    # => 什麼都不要做
+    elif lenT == 0 and (command == "RESB" or command == "RESW"):
+        pass
+    else:
+        # 如果 command 不等於 RESW 或， RESB，計算長度直到 30 為止
+        if (command != "RESW" and command != "RESB") and command != "BYTE":
+            if (lenT + len(objectCode[dictKey[counter]])) <= 60: 
+                lenT += len(objectCode[dictKey[counter]])
+        
+        # 如果是 BYTE， 因為長度不一定是固定 3 Bytes，直接結束並產生 T 卡片
+        elif command == "BYTE":
+            # print("BYTE end!")
+            endT = dictKey[counter]
+            # print("End T : {}".format(endT))
+            # print("------")
+
+            # Obj : 產出 T 卡片    
+            GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
+
+            # 重置 : 新的 T 卡片開始
+            lenT = 0
+            startT = None
+        
+        # 否則紀錄上一個的地址，然後開始印出 T 卡片
+        else:
+            # print("REXX end!")
+            endT = dictKey[counter-1]
+            # print("End T : {}".format(endT))
+            # print("------")
+            
+            # Obj : 產出 T 卡片
+            GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
+            
+            # 重置 : 新的 T 卡片開始
+            lenT = 0
+            startT = None
+        # 如果長度 >= 60，結束
+        # 紀錄地址，然後開始印出 T 卡片
+        if lenT <= 60 and ((lenT + len(objectCode[dictKey[counter]])) > 60):
+            # print("Early end!")
+            endT = dictKey[counter]
+            # print("End T : {}".format(endT))
+            # print("------")
+
+            # Obj : 產出 T 卡片    
+            GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
+
+            # 重置 : 新的 T 卡片開始
+            lenT = 0
+            startT = None
+
+    return startT, lenT
+
 # 印出 Literal
-def printLiteral(listFile, literalPC, literalCounter, literalAddr):
-    literalIndexList = list(literalPC)
-    for i in range(literalCounter, len(literalIndexList)):
-        if "STOP" in literalIndexList[i]:break
+def printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode):
+    listFile.write(dictKey[counter]) # 寫入 PC
+    # 數空格
+    for i in range(len(dictKey[counter]), 8):
+        listFile.write(" ")
 
-        # 讀出地址與 Literal
-        nowPC = literalIndexList[i]
-        literal = literalPC[nowPC] 
-        address = literalAddr[literal]
-        
-        listFile.write(nowPC) # 寫 PC
-        
-        # 數空格
-        for j in range(len(nowPC), 8):
-            listFile.write(" ")
+    listFile.write(objectCode[dictKey[counter]]) # 寫入 Obj Code
+    # 數空格
+    for i in range(len(objectCode[dictKey[counter]]), 8):
+        listFile.write(" ")
 
-        # 寫Obj Code
-        listFile.write(address)
+    literal = literalPC[dictKey[counter]] 
+    address = literalAddr[literal]
 
-        # 數空格
-        for j in range(len(address), 16):
-            listFile.write(" ")
-        
-        # 寫 * 號
-        listFile.write("*")
+    # 寫 * 號
+    listFile.write("*")
 
-        # 空七格
-        for j in range(1, 8):
-            listFile.write(" ")
+    # 空七格
+    for j in range(1, 8):
+        listFile.write(" ")
 
-        # 寫 Literal
-        listFile.write(literal)
-
-        # 換行
-        listFile.write("\n")
-        literalCounter += 1
-    literalCounter += 1 # 不這樣做下次再次計算時會直接算到 STOP 而停止
-
-    return literalCounter
+    # 寫 Literal
+    listFile.write(literal)
+    # 換行
+    listFile.write(("\n"))
 
 def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, regex_space, literalPC, literalAddr):
     """
@@ -99,29 +146,32 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                 # List : 如果知道是 START 行或 END 行，就直接大空格
                 if (command == "START"):
                     printSpace(listFile, line)
-                    # # Obj : 產出 H 卡片
-                    # GenCards.genHCard(objFile, label, startAt, length)
+                    # Obj : 產出 H 卡片
+                    GenCards.genHCard(objFile, label, startAt, length)
 
                 elif (command == "END"):
                     printSpace(listFile, line)
                     listFile.write("\n") # 換行一下
                     # 印出剩下的賦值
-                    literalIndexList = list(literalPC)
-                    literalCounter = printLiteral(listFile, literalPC, literalCounter, literalAddr)
+                    if literalCounter > 0:
+                        printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode)
                     
                     endArgAddress = labelAddress[arg]
-                    # # Obj : 產出最後的 T 卡片 (如果 lenT < 30 的話)
-                    # if startT != None and lenT < 30:
-                    #     # print("END end!")
-                    #     endT = dictKey[counter-1]
-                    #     # print("End T : {}".format(endT))
-                    #     # print("------")
+                    # Obj : 產出最後的 T 卡片 (如果 lenT < 60 的話)
+                    if startT != None and lenT < 60:
+                        # print("END end!")
+                        if counter <= len(dictKey) - 1:
+                            endT = dictKey[counter]
+                            # print("End T : {}".format(endT))
+                            # print("------")
 
-                    #     # Obj : 產出 T 卡片    
-                    #     GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
+                            # Obj : 產出 T 卡片    
+                            GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
+                        else:
+                            print("BUG")
 
-                    # # Obj : 產出 E 卡片
-                    # GenCards.genECard(objFile, endArgAddress)
+                    # Obj : 產出 E 卡片
+                    GenCards.genECard(objFile, endArgAddress)
                 
                 # List : 如果是註解行，一樣大空格處理
                 elif match_space != None:
@@ -135,12 +185,14 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                 elif command == "BASE":
                     printSpace(listFile, line)
 
-                # TODO : 如果是 LTORG， LTORG 整行大空格，並且把賦值往下寫
+                # 如果是 LTORG， LTORG 整行大空格，並且把賦值往下寫
+                # Obj : 幫忙產出 T 卡片
                 elif command == "LTORG":
                     printSpace(listFile, line)
-                    literalCounter = printLiteral(listFile, literalPC, literalCounter, literalAddr)
-
-                    continue
+                    # 印出賦值
+                    printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode)
+                    
+                    counter+=1
                 
                 # List : 否則直接寫出 PC 與 Obj Code
                 else:
@@ -157,61 +209,7 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                     listFile.write(line) # 寫入 asm 的內容
                     
                     # # Obj : 產出 T 卡片
-                    # # 如果 startT 沒有值，代表新的 T 卡片產出
-                    # if startT == None and (command != "RESW" and command != "RESB"):
-                    #     startT = dictKey[counter]
-                    #     # print("Start T : {}".format(startT))
-                    #     lenT += len(objectCode[dictKey[counter]]) # 讀到之後，算一下長度
+                    startT, lenT = printTCard(objFile, startT, lenT, command, counter, dictKey, objectCode)
                     
-                    # # 如果 lenT = 0 (代表根本沒有開始) 然後後面又接了 RESW 或 RESB
-                    # # => 什麼都不要做
-                    # elif lenT == 0 and (command == "RESB" or command == "RESW"):
-                    #     pass
-                    # else:
-                    #     # 如果 command 不等於 RESW 或， RESB，計算長度直到 30 為止
-                    #     if (command != "RESW" and command != "RESB") and command != "BYTE":
-                    #         lenT += len(objectCode[dictKey[counter]])
-                        
-                    #     # 如果是 BYTE， 因為長度不一定是固定 3 Bytes，直接結束並產生 T 卡片
-                    #     elif command == "BYTE":
-                    #         # print("BYTE end!")
-                    #         endT = dictKey[counter]
-                    #         # print("End T : {}".format(endT))
-                    #         # print("------")
-
-                    #         # Obj : 產出 T 卡片    
-                    #         GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
-
-                    #         # 重置 : 新的 T 卡片開始
-                    #         lenT = 0
-                    #         startT = None
-                        
-                    #     # 否則紀錄上一個的地址，然後開始印出 T 卡片
-                    #     else:
-                    #         # print("REXX end!")
-                    #         endT = dictKey[counter-1]
-                    #         # print("End T : {}".format(endT))
-                    #         # print("------")
-                            
-                    #         # Obj : 產出 T 卡片
-                    #         GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
-                            
-                    #         # 重置 : 新的 T 卡片開始
-                    #         lenT = 0
-                    #         startT = None
-                    #     # 如果長度 == 30，結束
-                    #     # 紀錄地址，然後開始印出 T 卡片
-                    #     if lenT >= 30:
-                    #         # print("Early end!")
-                    #         endT = dictKey[counter]
-                    #         # print("End T : {}".format(endT))
-                    #         # print("------")
-
-                    #         # Obj : 產出 T 卡片    
-                    #         GenCards.genTCard(objFile, startT, endT, lenT, objectCode)
-
-                    #         # 重置 : 新的 T 卡片開始
-                    #         lenT = 0
-                    #         startT = None
 
                     counter+=1

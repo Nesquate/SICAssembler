@@ -20,7 +20,7 @@ def genTCard(objFile, startAt, endAt, length, objCodeList):
 
     objFile.write("T")
     objFile.write(format(nowAtInt, "06X"))
-    objFile.write(format(length, "02X"))
+    objFile.write(format(int(length/2), "02X"))
 
     # 當目前PC數字小於等於終點數字時，持續印出
     while nowAtInt <= endAtInt:
