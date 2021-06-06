@@ -86,7 +86,7 @@ def printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode)
 
     listFile.write(objectCode[dictKey[counter]]) # 寫入 Obj Code
     # 數空格
-    for i in range(len(objectCode[dictKey[counter]]), 8):
+    for i in range(len(objectCode[dictKey[counter]]), 16):
         listFile.write(" ")
 
     literal = literalPC[dictKey[counter]] 
@@ -161,8 +161,9 @@ def genFile(objFileName, listFileName, labelAddress, objectCode, text, regex, re
                     printSpace(listFile, line)
                     listFile.write("\n") # 換行一下
                     # 印出剩下的賦值
-                    if literalCounter > 0:
-                        printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode)
+                    print(literalCounter)
+                    # if literalCounter > 0:
+                    printLiteral(listFile, literalPC, counter, dictKey, literalAddr, objectCode)
                     
                     endArgAddress = labelAddress[arg]
                     # Obj : 產出最後的 T 卡片 (如果 lenT < 60 的話)
